@@ -68,13 +68,16 @@ def _git_log_24h() -> list[str]:
             ["git", "log", f"--since={since}", "--pretty=format:%s", "--no-merges"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=15,
             cwd=_REPO_ROOT,
         )
         if result.returncode != 0:
-            logger.warning("git log failed: %s", result.stderr.strip())
+            logger.warning("git log failed: %s", (result.stderr or "").strip())
             return []
-        return [l.strip() for l in result.stdout.splitlines() if l.strip()][:20]
+        stdout = result.stdout or ""
+        return [l.strip() for l in stdout.splitlines() if l.strip()][:20]
     except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
         logger.warning("git log error: %s", exc)
         return []
