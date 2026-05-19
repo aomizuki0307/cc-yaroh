@@ -117,5 +117,15 @@ def generate_tweet(pillar: str, source_data: dict[str, Any], hashtags: str = "")
         raw = _call_anthropic(system, user)
         return _trim(_extract_tweet(raw))
     except Exception as exc:
-        logger.warning("Anthropic API unavailable (%s) — using fallback template.", exc)
+        import anthropic as _anthropic
+
+        _transient = (
+            _anthropic.RateLimitError,
+            _anthropic.APIConnectionError,
+            _anthropic.APITimeoutError,
+            _anthropic.InternalServerError,
+        )
+        if not isinstance(exc, _transient):
+            raise
+        logger.warning("Anthropic API unavailable (%s) — using fallback template.", type(exc).__name__)
         return _fallback_tweet(pillar, source_data, hashtags)

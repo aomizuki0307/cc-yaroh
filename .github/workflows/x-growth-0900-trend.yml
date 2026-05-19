@@ -2,7 +2,6 @@ name: x-growth-0900-trend
 
 on:
   schedule:
-    # JST 09:00 = UTC (0 0 * * *)
     - cron: '0 0 * * *'
   workflow_dispatch:
 
@@ -24,28 +23,14 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Create .env.x-growth
+      - name: Post tweet (trend)
         env:
           X_OAUTH_CONSUMER_KEY: ${{ secrets.X_OAUTH_CONSUMER_KEY }}
           X_OAUTH_CONSUMER_SECRET: ${{ secrets.X_OAUTH_CONSUMER_SECRET }}
           X_OAUTH_ACCESS_TOKEN: ${{ secrets.X_OAUTH_ACCESS_TOKEN }}
           X_OAUTH_ACCESS_TOKEN_SECRET: ${{ secrets.X_OAUTH_ACCESS_TOKEN_SECRET }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: |
-          printf '%s\n' \
-            'PUBLISH_PLATFORM=x' \
-            'NEWSBOT_PROFILE=x-growth' \
-            "X_OAUTH_CONSUMER_KEY=$X_OAUTH_CONSUMER_KEY" \
-            "X_OAUTH_CONSUMER_SECRET=$X_OAUTH_CONSUMER_SECRET" \
-            "X_OAUTH_ACCESS_TOKEN=$X_OAUTH_ACCESS_TOKEN" \
-            "X_OAUTH_ACCESS_TOKEN_SECRET=$X_OAUTH_ACCESS_TOKEN_SECRET" \
-            "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY" \
-            'X_DRY_RUN=false' \
-            'X_HASHTAGS_DEFAULT=#ClaudeCode #AI副業' \
-            'X_PILLAR_OVERRIDE=trend' \
-            > .env.x-growth
-
-      - name: Post tweet (trend)
+          X_HASHTAGS_DEFAULT: "#ClaudeCode #AI副業"
         run: python -m x_growth.runner --pillar trend --live
 
       - name: Upload draft artifact
@@ -54,6 +39,4 @@ jobs:
         with:
           name: x-growth-0900-trend-${{ github.run_number }}
           path: out/x-growth/
-          retention-days: 14
-
-
+          retention-days: 3

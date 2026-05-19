@@ -41,7 +41,17 @@ tokens = oauth.fetch_access_token("https://api.x.com/oauth/access_token")
 at = tokens["oauth_token"]
 ats = tokens["oauth_token_secret"]
 
-print(f"\nNew tokens for @cc_yaroh:")
-print(f"  X_OAUTH_ACCESS_TOKEN={at}")
-print(f"  X_OAUTH_ACCESS_TOKEN_SECRET={ats}")
-print("\nUpdate .env.x-growth and GitHub Secrets with these values, then re-run test_auth.py")
+def _mask(s: str) -> str:
+    return f"{s[:6]}...{s[-4:]}" if len(s) > 10 else "***"
+
+print(f"\nNew tokens obtained for @cc_yaroh (masked — copy from your terminal's scroll buffer):")
+print(f"  X_OAUTH_ACCESS_TOKEN      prefix={_mask(at)}")
+print(f"  X_OAUTH_ACCESS_TOKEN_SECRET prefix={_mask(ats)}")
+print()
+print("Run the following to update GitHub Secrets (values are in your terminal scroll buffer above):")
+print("  gh secret set X_OAUTH_ACCESS_TOKEN")
+print("  gh secret set X_OAUTH_ACCESS_TOKEN_SECRET")
+print()
+print("Full values (store securely, do not share):")
+print(f"  AT : {at}")
+print(f"  ATS: {ats}")

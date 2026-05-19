@@ -54,9 +54,11 @@ def collect_revenue() -> RevenueSource:
         return RevenueSource(kpi_lines=["KPI計測開始前"])
 
     lines = _KPI_CSV.read_text(encoding="utf-8").splitlines()
-    header = lines[0] if lines else ""
-    tail = lines[-3:] if len(lines) > 1 else []
-    kpi_lines = [header] + tail if header else tail
+    if not lines:
+        return RevenueSource(kpi_lines=["KPI計測開始前"])
+    header = lines[0]
+    tail = lines[1:][-3:]
+    kpi_lines = [header] + tail
     logger.info("RevenueSource: %d KPI lines", len(kpi_lines))
     return RevenueSource(kpi_lines=kpi_lines)
 
@@ -77,7 +79,7 @@ def _git_log_24h() -> list[str]:
             logger.warning("git log failed: %s", (result.stderr or "").strip())
             return []
         stdout = result.stdout or ""
-        return [l.strip() for l in stdout.splitlines() if l.strip()][:20]
+        return [line.strip() for line in stdout.splitlines() if line.strip()][:20]
     except (subprocess.TimeoutExpired, FileNotFoundError) as exc:
         logger.warning("git log error: %s", exc)
         return []
@@ -88,5 +90,5 @@ def _read_adr_excerpts(max_entries: int = 2) -> list[str]:
         return []
     text = _DECISIONS_MD.read_text(encoding="utf-8")
     blocks = re.split(r"(?=^#{2,3} ADR-)", text, flags=re.MULTILINE)
-    adr_blocks = [b.strip() for b in blocks if b.strip().startswith("#")]
+    adr_blocks = [b.strip() for b in blocks if re.match(r"^#{2,3} ADR-", b.strip())]
     return [b[:300] for b in adr_blocks[-max_entries:]]

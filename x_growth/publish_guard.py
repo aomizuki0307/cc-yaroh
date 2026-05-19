@@ -13,6 +13,8 @@ _SECRET_PATTERNS = [
     re.compile(r"(?i)bearer\s+[A-Za-z0-9\-._~+/]+=*"),
     re.compile(r"ghp_[A-Za-z0-9]{36}"),
     re.compile(r"sk-[A-Za-z0-9]{48}"),
+    re.compile(r"\d{10,}-[A-Za-z0-9]{20,}"),      # X OAuth access token
+    re.compile(r"sk-ant-[A-Za-z0-9\-_]{20,}"),    # Anthropic API key
 ]
 
 _INFLAMMATORY_PATTERNS = [
