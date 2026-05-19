@@ -33,6 +33,8 @@ def post_tweet(text: str) -> dict[str, Any]:
 
     logger.info("Posting tweet (%d chars): %s...", len(text), text[:60])
     resp = session.post(_TWEETS_URL, json={"text": text}, timeout=30)
+    if not resp.ok:
+        logger.error("X API error %d: %s", resp.status_code, resp.text)
     resp.raise_for_status()
     data = resp.json().get("data", {})
     tweet_id = data.get("id", "")
