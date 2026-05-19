@@ -1,0 +1,58 @@
+name: x-growth-0600-trend
+
+on:
+  schedule:
+    # JST 06:00 = UTC (0 21 * * *)
+    - cron: '0 21 * * *'
+  workflow_dispatch:
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: requirements-x-growth.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-x-growth.txt
+
+      - name: Create .env.x-growth
+        env:
+          X_OAUTH_CONSUMER_KEY: ${{ secrets.X_OAUTH_CONSUMER_KEY }}
+          X_OAUTH_CONSUMER_SECRET: ${{ secrets.X_OAUTH_CONSUMER_SECRET }}
+          X_OAUTH_ACCESS_TOKEN: ${{ secrets.X_OAUTH_ACCESS_TOKEN }}
+          X_OAUTH_ACCESS_TOKEN_SECRET: ${{ secrets.X_OAUTH_ACCESS_TOKEN_SECRET }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          printf '%s\n' \
+            'PUBLISH_PLATFORM=x' \
+            'NEWSBOT_PROFILE=x-growth' \
+            "X_OAUTH_CONSUMER_KEY=$X_OAUTH_CONSUMER_KEY" \
+            "X_OAUTH_CONSUMER_SECRET=$X_OAUTH_CONSUMER_SECRET" \
+            "X_OAUTH_ACCESS_TOKEN=$X_OAUTH_ACCESS_TOKEN" \
+            "X_OAUTH_ACCESS_TOKEN_SECRET=$X_OAUTH_ACCESS_TOKEN_SECRET" \
+            "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY" \
+            'X_DRY_RUN=false' \
+            'X_HASHTAGS_DEFAULT=#ClaudeCode #AI副業' \
+            'X_PILLAR_OVERRIDE=trend' \
+            > .env.x-growth
+
+      - name: Post tweet (trend)
+        run: python -m x_growth.runner --pillar trend --live
+
+      - name: Upload draft artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: x-growth-0600-trend-${{ github.run_number }}
+          path: out/x-growth/
+          retention-days: 14
+
