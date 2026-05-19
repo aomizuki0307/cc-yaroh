@@ -29,7 +29,7 @@ def _call_anthropic(system: str, user: str) -> str:
     if not api_key:
         raise ValueError("ANTHROPIC_API_KEY not set")
 
-    client = anthropic.Anthropic(api_key=api_key)
+    client = anthropic.Anthropic(api_key=api_key, max_retries=5)
     message = client.messages.create(
         model=_MODEL,
         max_tokens=512,
