@@ -1,8 +1,6 @@
 name: x-growth-0730-trend
 
 on:
-  schedule:
-    - cron: '30 22 * * *'
   workflow_dispatch:
 
 jobs:

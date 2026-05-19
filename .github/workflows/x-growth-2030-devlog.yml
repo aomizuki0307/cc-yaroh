@@ -1,8 +1,6 @@
 name: x-growth-2030-devlog
 
 on:
-  schedule:
-    - cron: '30 11 * * *'
   workflow_dispatch:
 
 jobs:
