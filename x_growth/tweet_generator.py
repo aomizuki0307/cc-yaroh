@@ -1,10 +1,14 @@
-"""Generate tweet text for each pillar using Anthropic API (Haiku)."""
+"""Generate tweet text for each pillar using Anthropic API (Haiku).
+
+Falls back to a template tweet when the API is overloaded or unavailable.
+"""
 
 from __future__ import annotations
 
 import logging
 import os
 import re
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -56,8 +60,34 @@ def _trim(text: str) -> str:
     return text
 
 
+def _fallback_tweet(pillar: str, source_data: dict[str, Any], hashtags: str) -> str:
+    """Simple template tweet used when Anthropic API is unavailable."""
+    today = date.today().strftime("%m/%d")
+    tag = hashtags or "#ClaudeCode #AI副業"
+
+    if pillar == "trend":
+        return _trim(f"【{today} AIトレンド】Claude Codeで最新AI動向をキャッチアップ中。今日も自動化の精度を上げていきます。{tag}")
+
+    if pillar == "devlog":
+        commits = source_data.get("git_commits", [])
+        if commits:
+            subject = commits[0][:40]
+            return _trim(f"【本日の開発】{subject}... Claude Codeで実装中。build in publicで全公開。{tag}")
+        return _trim(f"【{today} devlog】今日もClaude Codeで自動化パイプラインを改善中。進捗は全公開。{tag}")
+
+    # revenue
+    kpi = source_data.get("kpi_lines", [])
+    followers_line = next((l for l in kpi if "followers" in l.lower() or "フォロワー" in l), "")
+    if followers_line:
+        return _trim(f"【KPI報告】{followers_line[:60]}... 全力で1万フォロワー目指し中。{tag}")
+    return _trim(f"【{today} 収益報告】Day1。まだ0円スタート。Claude Code全自動で3ヶ月1万フォロワー&月50万チャレンジ開始。{tag}")
+
+
 def generate_tweet(pillar: str, source_data: dict[str, Any], hashtags: str = "") -> str:
-    """Generate a tweet for the given pillar from source_data."""
+    """Generate a tweet for the given pillar from source_data.
+
+    Tries Anthropic API first; falls back to template on overload/API error.
+    """
     if pillar == "trend":
         system = _load_prompt("tier1_trend.md")
         headlines = source_data.get("headlines", [])
@@ -83,5 +113,9 @@ def generate_tweet(pillar: str, source_data: dict[str, Any], hashtags: str = "")
     if hashtags:
         user += f"\n\n末尾ハッシュタグ: {hashtags}"
 
-    raw = _call_anthropic(system, user)
-    return _trim(_extract_tweet(raw))
+    try:
+        raw = _call_anthropic(system, user)
+        return _trim(_extract_tweet(raw))
+    except Exception as exc:
+        logger.warning("Anthropic API unavailable (%s) — using fallback template.", exc)
+        return _fallback_tweet(pillar, source_data, hashtags)
