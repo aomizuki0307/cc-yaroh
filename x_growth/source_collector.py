@@ -39,11 +39,14 @@ class RevenueSource:
 
 
 def collect_trend() -> TrendSource:
-    return TrendSource(
-        headlines=[
-            "Trend pillar is paused until RSS/source integration is implemented. Do not invent metrics or news."
-        ]
-    )
+    from .rss_collector import fetch_headlines
+
+    headlines = fetch_headlines()
+    if not headlines:
+        logger.warning("collect_trend: no headlines fetched — all RSS feeds failed or empty")
+        headlines = ["AIトレンド情報の取得に失敗しました。次回リトライします。"]
+    logger.info("TrendSource: %d headlines", len(headlines))
+    return TrendSource(headlines=headlines)
 
 
 def collect_devlog() -> DevlogSource:
