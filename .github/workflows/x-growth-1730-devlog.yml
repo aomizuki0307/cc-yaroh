@@ -1,6 +1,8 @@
 name: x-growth-1730-devlog
 
 on:
+  schedule:
+    - cron: '0 6 * * *'
   workflow_dispatch:
 
 jobs:
