@@ -9,17 +9,19 @@
 ```
 x_growth/          # 投稿パイプライン（Python）
 prompts/x_growth/  # LLMプロンプト（3ピラー）
-.github/workflows/ # GitHub Actions cron（10スロット/日）
+.github/workflows/ # GitHub Actions cron（W1は3スロットのみ有効）
 docs/x-growth/     # KPI・週次レポート
 ```
 
-## 3ピラー × 1日10投稿
+## 3ピラー × 最大1日10投稿
 
 | Pillar | 投稿数/日 | 時間帯 (JST) |
 |---|---|---|
 | Trend（AI技術ニュース解説） | 4 | 6:00 / 7:30 / 9:00 / 11:30 |
 | Devlog（開発実況・build in public） | 4 | 12:30 / 17:30 / 19:00 / 20:30 |
 | Revenue（収益・KPI公開） | 2 | 22:00 / 23:30 |
+
+W1前半は凍結リスクを避けるため、12:30 / 19:00 / 22:00 の3スロットのみcron有効。
 
 ## セットアップ
 

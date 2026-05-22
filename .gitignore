@@ -7,3 +7,8 @@ __pycache__/
 out/x-growth/*/
 !out/x-growth/.gitkeep
 logs/
+
+# Local one-shot helpers that read .env.x-growth / OAuth credentials.
+post_first_tweet.py
+test_auth.py
+test_auth2.py

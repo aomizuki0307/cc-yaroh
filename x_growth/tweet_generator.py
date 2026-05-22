@@ -125,7 +125,9 @@ def generate_tweet(pillar: str, source_data: dict[str, Any], hashtags: str = "")
             _anthropic.APITimeoutError,
             _anthropic.InternalServerError,
         )
-        if not isinstance(exc, _transient):
+        # HTTP 529 OverloadedError — not exported at top level in all SDK versions
+        _is_overloaded = isinstance(exc, _anthropic.APIStatusError) and exc.status_code == 529
+        if not (isinstance(exc, _transient) or _is_overloaded):
             raise
         logger.warning("Anthropic API unavailable (%s) — using fallback template.", type(exc).__name__)
         return _fallback_tweet(pillar, source_data, hashtags)

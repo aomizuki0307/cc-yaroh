@@ -8,7 +8,7 @@ Claude Code 特化の新規 X ハンドル「CCやろー」の運用・証跡・
 |---|---|
 | ハンドル | `@cc_yaroh`（Claude Code やろー）候補 |
 | 開始日 | 2026-05-18 (W0) |
-| 目標 | 3か月で 10K followers / 月50万円収益 |
+| 目標 | 3か月で 10K followers / 月50万円相当の収益 |
 | 戦略 | ぱうう @09pauai 型: Claude Code 全自動 × 1日10投稿 × build in public |
 | プラン詳細 | [docs/ai/x-growth-plan.md](../ai/x-growth-plan.md) |
 | 実装記録 | [docs/ai/decisions.md](../ai/decisions.md) ADR-005 |
@@ -20,7 +20,7 @@ docs/x-growth/
 ├── README.md          ← このファイル
 ├── kpi.csv            ← 日次KPI（フォロワー / インプ / 収益）
 ├── evidence/
-│   └── day-0/         ← Day0 スクショ（Sorsa参加日 / フォロワー0証跡）
+│   └── day-0/         ← Day0 スクショ（X参加日 / フォロワー0証跡）
 └── weekly/
     ├── W00.md         ← Week 0 仕込みログ
     ├── W01.md
@@ -33,10 +33,12 @@ docs/x-growth/
 |---|---|---|
 | W1 | 50 | 1日3投稿でスタート |
 | W4 | 500 | **Go/No-Go ゲート** |
-| W6 | 1,000 | X 収益化条件 |
+| W6 | 1,000 | 収益化申請の中間ゲート |
 | W12 | 10,000 | 3か月チャレンジ |
 
-## コンテンツピラー（1日10投稿）
+Xクリエイター収益配分の参加資格は変わる可能性があるため、最新条件は公式ヘルプで確認する。2026-05-20確認時点では、Premium系サブスクリプション、過去3か月500万以上のオーガニックインプレッション、500人以上の認証済みフォロワーなどが必要。
+
+## コンテンツピラー（最大1日10投稿）
 
 | Pillar | 本数 | 内容 |
 |---|---|---|
@@ -47,11 +49,15 @@ docs/x-growth/
 ## 投稿自動化パイプライン
 
 ```
-newsbot collect → pillar_router (時間帯判定) → tier prompt生成 → publish_guard (フィルタ) → publish_to_x
+x_growth collect → pillar_router (時間帯判定) → tier prompt生成 → publish_guard (フィルタ) → publish_to_x
 ```
 
-実装: `workspace/projects/newsbot/src/publish_x.py`  
-スケジューラ: `.github/workflows/x-growth-*.yml` (10本 × 時間帯)
+実装: `x_growth/`  
+スケジューラ: `.github/workflows/x-growth-*.yml`（W1前半は3本のみcron有効）
+
+## コスト前提
+
+X APIはPay-per-use。2026-05-20確認時点の公式価格では、投稿作成は通常 $0.015/request、URL付き投稿は $0.200/request。300投稿/月ならURLなしで約 $4.50 から。実コストはDeveloper Consoleで確認する。
 
 ## らたろー.T との分離ポリシー
 

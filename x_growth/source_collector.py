@@ -39,7 +39,11 @@ class RevenueSource:
 
 
 def collect_trend() -> TrendSource:
-    return TrendSource(headlines=["Claude Code 最新動向 (RSS統合はW2実装予定)"])
+    return TrendSource(
+        headlines=[
+            "Trend pillar is paused until RSS/source integration is implemented. Do not invent metrics or news."
+        ]
+    )
 
 
 def collect_devlog() -> DevlogSource:
