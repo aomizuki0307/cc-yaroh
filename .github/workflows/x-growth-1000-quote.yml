@@ -1,0 +1,51 @@
+name: x-growth-1000-quote
+
+on:
+  schedule:
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Post quote tweets
+        env:
+          X_OAUTH_CONSUMER_KEY: ${{ secrets.X_OAUTH_CONSUMER_KEY }}
+          X_OAUTH_CONSUMER_SECRET: ${{ secrets.X_OAUTH_CONSUMER_SECRET }}
+          X_OAUTH_ACCESS_TOKEN: ${{ secrets.X_OAUTH_ACCESS_TOKEN }}
+          X_OAUTH_ACCESS_TOKEN_SECRET: ${{ secrets.X_OAUTH_ACCESS_TOKEN_SECRET }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python -m x_growth.engagement_collector --include-quotes --live
+
+      - name: Commit quote log
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add out/x-growth/quotes/ out/x-growth/posted_ids.json || true
+          git diff --cached --quiet || git commit -m "log: auto-quote $(date +%Y-%m-%d) [skip ci]"
+          git push
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: x-growth-1000-quote-${{ github.run_number }}
+          path: out/x-growth/
+          retention-days: 3
