@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 import os
 from datetime import datetime, timezone, timedelta
-from typing import Literal
+from typing import Literal, get_args
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ _SLOT_PILLAR: dict[tuple[int, int], Pillar] = {
     (23, 30): "revenue",
 }
 
-_ALL_PILLARS = ("trend", "devlog", "revenue", "opinion", "utility")
+_ALL_PILLARS = get_args(Pillar)
 
 
 def resolve_pillar(*, override: str | None = None) -> Pillar:

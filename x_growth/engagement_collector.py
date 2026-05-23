@@ -56,8 +56,8 @@ def _score_tweet(tweet: dict, followers: int) -> float:
                 age_score = 1.0
             elif age_hours <= 6:
                 age_score = 0.6
-        except Exception:
-            pass
+        except (ValueError, OverflowError) as exc:
+            logger.debug("age_score parse skipped: %s", exc)
 
     # influence_score: log10(followers+1)/5, capped at 1.0
     influence_score = min(math.log10(followers + 1) / 5, 1.0)
@@ -162,15 +162,27 @@ def _search_tweets_for_quote() -> list[dict]:
 # AI generation
 # ---------------------------------------------------------------------------
 
-def _generate_reply(tweet_text: str, username: str) -> str:
-    """Generate a contextual reply as @cc_yaroh using Haiku."""
+def _call_haiku(system: str, user: str, max_chars: int, fallback: str) -> str:
+    """Call Haiku with the given prompts; return fallback on any API error."""
     import anthropic
 
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
-        return "（APIキー未設定 — 返信下書きは手動で作成してください）"
+        return fallback
 
-    system = """あなたは @cc_yaroh (CCたろー) として返信文を書きます。
+    try:
+        client = anthropic.Anthropic(api_key=api_key, max_retries=3)
+        message = client.messages.create(
+            model=_MODEL, max_tokens=256, system=system,
+            messages=[{"role": "user", "content": user}],
+        )
+        return message.content[0].text.strip()[:max_chars]  # type: ignore[union-attr]
+    except Exception as exc:
+        logger.warning("Haiku call failed: %s", exc)
+        return fallback
+
+
+_REPLY_SYSTEM = """あなたは @cc_yaroh (CCたろー) として返信文を書きます。
 キャラクター: Claude Code で副業を全自動化中のエンジニア。build in public スタイル。
 
 返信のルール:
@@ -184,30 +196,7 @@ def _generate_reply(tweet_text: str, username: str) -> str:
 
 出力形式: 返信本文のみ。前置き不要。"""
 
-    user = f"@{username} のツイート:\n\n{tweet_text}\n\n返信文を生成してください。"
-
-    try:
-        client = anthropic.Anthropic(api_key=api_key, max_retries=3)
-        message = client.messages.create(
-            model=_MODEL, max_tokens=256, system=system,
-            messages=[{"role": "user", "content": user}],
-        )
-        reply = message.content[0].text.strip()  # type: ignore[union-attr]
-        return reply[:_MAX_REPLY_CHARS]
-    except Exception as exc:
-        logger.warning("Reply generation failed: %s", exc)
-        return "（生成失敗 — 手動で返信文を作成してください）"
-
-
-def _generate_quote_text(tweet_text: str, username: str) -> str:
-    """Generate quote tweet commentary as @cc_yaroh using Haiku."""
-    import anthropic
-
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not api_key:
-        return "（APIキー未設定）"
-
-    system = """あなたは @cc_yaroh (CCたろー) として引用ツイートのコメントを書きます。
+_QUOTE_SYSTEM = """あなたは @cc_yaroh (CCたろー) として引用ツイートのコメントを書きます。
 キャラクター: Claude Code で副業を全自動化中のエンジニア。build in public スタイル。
 
 引用コメントのルール:
@@ -221,19 +210,15 @@ def _generate_quote_text(tweet_text: str, username: str) -> str:
 
 出力形式: コメント本文のみ。前置き不要。"""
 
-    user = f"@{username} のツイート:\n\n{tweet_text}\n\n引用コメントを生成してください。"
 
-    try:
-        client = anthropic.Anthropic(api_key=api_key, max_retries=3)
-        message = client.messages.create(
-            model=_MODEL, max_tokens=256, system=system,
-            messages=[{"role": "user", "content": user}],
-        )
-        text = message.content[0].text.strip()  # type: ignore[union-attr]
-        return text[:_MAX_QUOTE_CHARS]
-    except Exception as exc:
-        logger.warning("Quote text generation failed: %s", exc)
-        return "（生成失敗）"
+def _generate_reply(tweet_text: str, username: str) -> str:
+    user = f"@{username} のツイート:\n\n{tweet_text}\n\n返信文を生成してください。"
+    return _call_haiku(_REPLY_SYSTEM, user, _MAX_REPLY_CHARS, "（生成失敗 — 手動で返信文を作成してください）")
+
+
+def _generate_quote_text(tweet_text: str, username: str) -> str:
+    user = f"@{username} のツイート:\n\n{tweet_text}\n\n引用コメントを生成してください。"
+    return _call_haiku(_QUOTE_SYSTEM, user, _MAX_QUOTE_CHARS, "（生成失敗）")
 
 
 # ---------------------------------------------------------------------------
@@ -346,11 +331,13 @@ def run(
     include_quotes: bool = False,
 ) -> None:
     if post_id and reply_text:
+        if not post_id.isdigit():
+            raise ValueError(f"Invalid tweet ID (expected numeric Snowflake): {post_id!r}")
         if dry_run:
             logger.info("DRY-RUN: would reply to %s: %s", post_id, reply_text[:60])
             return
         result = post_reply(post_id, reply_text)
-        print(f"Reply posted: {result['url']}")
+        logger.info("Reply posted: %s", result['url'])
         return
 
     tweets = _search_tweets()

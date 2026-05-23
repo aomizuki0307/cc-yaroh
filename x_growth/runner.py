@@ -96,7 +96,7 @@ def run(
         return {"pillar": pillar, "tweet": tweet, "status": "dry_run", "draft": str(draft_path)}
 
     from x_growth.publisher import post_tweet
-    result = post_tweet(tweet)
+    result = post_tweet(tweet, pillar=pillar)
     return {"pillar": pillar, "tweet": tweet, **result}
 
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -36,21 +37,38 @@ def _load_credentials() -> tuple[str, str, str, str]:
 
 
 def _append_posted_id(tweet_id: str, pillar: str) -> None:
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=_KEEP_DAYS)).isoformat()
+    cutoff_dt = datetime.now(timezone.utc) - timedelta(days=_KEEP_DAYS)
     records: list[dict[str, str]] = []
     if _POSTED_IDS_JSON.exists():
         try:
             records = json.loads(_POSTED_IDS_JSON.read_text(encoding="utf-8"))
-        except Exception:
+        except json.JSONDecodeError as exc:
+            logger.warning("posted_ids.json is corrupt, resetting: %s", exc)
             records = []
-    records = [r for r in records if r.get("posted_at", "") >= cutoff]
+        except OSError as exc:
+            logger.error("Cannot read posted_ids.json: %s", exc)
+            records = []
+
+    def _is_recent(r: dict[str, str]) -> bool:
+        try:
+            return datetime.fromisoformat(r.get("posted_at", "")) >= cutoff_dt
+        except (ValueError, OverflowError):
+            return False
+
+    records = [r for r in records if _is_recent(r)]
     records.append({
         "id": tweet_id,
         "pillar": pillar,
         "posted_at": datetime.now(timezone.utc).isoformat(),
     })
     _POSTED_IDS_JSON.parent.mkdir(parents=True, exist_ok=True)
-    _POSTED_IDS_JSON.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
+    payload = json.dumps(records, ensure_ascii=False, indent=2).encode("utf-8")
+    with tempfile.NamedTemporaryFile(
+        dir=_POSTED_IDS_JSON.parent, delete=False, suffix=".tmp"
+    ) as tmp:
+        tmp.write(payload)
+        tmp_path = tmp.name
+    os.replace(tmp_path, _POSTED_IDS_JSON)
 
 
 def post_tweet(
