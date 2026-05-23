@@ -29,8 +29,14 @@ def _load_credentials() -> tuple[str, str, str, str]:
     return tuple(os.environ[k] for k in _REQUIRED_ENV)  # type: ignore[return-value]
 
 
-def post_tweet(text: str) -> dict[str, Any]:
-    """Post a tweet and return result dict with id, url, status."""
+def post_tweet(text: str, *, reply_to_id: str | None = None) -> dict[str, Any]:
+    """Post a tweet and return result dict with id, url, status.
+
+    Args:
+        text: Tweet body (≤280 chars).
+        reply_to_id: Tweet ID to reply to. When set, this tweet is posted as a
+            reply in a thread.
+    """
     if len(text) > _MAX_CHARS:
         raise ValueError(f"Tweet too long ({len(text)} > {_MAX_CHARS})")
 
@@ -45,8 +51,12 @@ def post_tweet(text: str) -> dict[str, Any]:
     retry = Retry(total=3, backoff_factor=1, status_forcelist=[429, 500, 503])
     session.mount("https://", HTTPAdapter(max_retries=retry))
 
-    logger.info("Posting tweet (%d chars): %.60s...", len(text), text)
-    resp = session.post(_TWEETS_URL, json={"text": text}, timeout=30)
+    payload: dict[str, Any] = {"text": text}
+    if reply_to_id:
+        payload["reply"] = {"in_reply_to_tweet_id": reply_to_id}
+
+    logger.info("Posting tweet (%d chars) reply_to=%s: %.60s...", len(text), reply_to_id, text)
+    resp = session.post(_TWEETS_URL, json=payload, timeout=30)
     if not resp.ok:
         try:
             err = resp.json()
