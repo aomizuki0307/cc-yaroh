@@ -1,6 +1,8 @@
 name: x-growth-2330-revenue
 
 on:
+  schedule:
+    - cron: '30 12 * * *'
   workflow_dispatch:
 
 jobs:
