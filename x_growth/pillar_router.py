@@ -1,9 +1,10 @@
 """Map JST hour to content pillar for @cc_yaroh daily posting schedule.
 
-Posting slots (JST) and their pillars:
-  06:00 -> trend    07:30 -> trend    09:00 -> trend    11:30 -> trend
-  12:30 -> devlog   17:30 -> devlog   19:00 -> devlog   20:30 -> devlog
-  22:00 -> revenue  23:30 -> revenue
+New posting slots (JST) and their pillars:
+  07:40 -> utility   12:10 -> opinion
+  21:10 -> devlog    22:20 -> devlog or revenue (day-dependent)
+
+Legacy slots kept for workflow_dispatch compatibility.
 """
 
 from __future__ import annotations
@@ -15,11 +16,16 @@ from typing import Literal
 
 logger = logging.getLogger(__name__)
 
-Pillar = Literal["trend", "devlog", "revenue"]
+Pillar = Literal["trend", "devlog", "revenue", "opinion", "utility"]
 
 JST = timezone(timedelta(hours=9))
 
 _SLOT_PILLAR: dict[tuple[int, int], Pillar] = {
+    (7, 40): "utility",
+    (12, 10): "opinion",
+    (21, 10): "devlog",
+    (22, 20): "devlog",
+    # Legacy slots (workflow_dispatch only)
     (6, 0): "trend",
     (7, 30): "trend",
     (9, 0): "trend",
@@ -32,6 +38,9 @@ _SLOT_PILLAR: dict[tuple[int, int], Pillar] = {
     (23, 30): "revenue",
 }
 
+_ALL_PILLARS = ("trend", "devlog", "revenue", "opinion", "utility")
+
+
 def resolve_pillar(*, override: str | None = None) -> Pillar:
     """Return the pillar for the current time slot.
 
@@ -42,7 +51,7 @@ def resolve_pillar(*, override: str | None = None) -> Pillar:
         Pillar name.
     """
     candidate = override or os.getenv("X_PILLAR_OVERRIDE", "").strip().lower()
-    if candidate in ("trend", "devlog", "revenue"):
+    if candidate in _ALL_PILLARS:
         logger.info("Pillar override: %s", candidate)
         return candidate  # type: ignore[return-value]
 

@@ -1,13 +1,16 @@
 """Collect raw content for each pillar.
 
-trend   — placeholder (real RSS integration is W2)
+trend   — RSS headlines (rss_collector)
 devlog  — git log (last 24 h) + docs/ai/decisions.md (last 2 ADRs)
 revenue — kpi.csv snapshot
+opinion — RSS headlines (context) + git log + random template hint
+utility — git log + random topic hint
 """
 
 from __future__ import annotations
 
 import logging
+import random
 import re
 import subprocess
 from dataclasses import dataclass, field
@@ -36,6 +39,23 @@ class DevlogSource:
 @dataclass
 class RevenueSource:
     kpi_lines: list[str] = field(default_factory=list)
+
+
+@dataclass
+class OpinionSource:
+    headlines: list[str] = field(default_factory=list)
+    commits: list[str] = field(default_factory=list)
+    template_hint: str = ""
+
+
+@dataclass
+class UtilitySource:
+    topic_hint: str = ""
+    commits: list[str] = field(default_factory=list)
+
+
+_OPINION_TEMPLATES = ["失敗型", "数字型", "比較型", "問い型", "実装型"]
+_UTILITY_TOPICS = ["tips", "prompt", "actions", "error"]
 
 
 def collect_trend() -> TrendSource:
@@ -68,6 +88,23 @@ def collect_revenue() -> RevenueSource:
     kpi_lines = [header] + tail
     logger.info("RevenueSource: %d KPI lines", len(kpi_lines))
     return RevenueSource(kpi_lines=kpi_lines)
+
+
+def collect_opinion() -> OpinionSource:
+    from .rss_collector import fetch_headlines
+
+    headlines = fetch_headlines(max_items=3)
+    commits = _git_log_24h()
+    template = random.choice(_OPINION_TEMPLATES)
+    logger.info("OpinionSource: %d headlines, %d commits, template=%s", len(headlines), len(commits), template)
+    return OpinionSource(headlines=headlines, commits=commits, template_hint=template)
+
+
+def collect_utility() -> UtilitySource:
+    commits = _git_log_24h()
+    topic = random.choice(_UTILITY_TOPICS)
+    logger.info("UtilitySource: %d commits, topic=%s", len(commits), topic)
+    return UtilitySource(topic_hint=topic, commits=commits)
 
 
 def _git_log_24h() -> list[str]:

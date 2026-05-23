@@ -1,8 +1,6 @@
 name: x-growth-0600-trend
 
 on:
-  schedule:
-    - cron: '0 21 * * *'
   workflow_dispatch:
 
 jobs:

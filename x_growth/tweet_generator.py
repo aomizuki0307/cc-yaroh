@@ -75,6 +75,21 @@ def _fallback_tweet(pillar: str, source_data: dict[str, Any], hashtags: str) -> 
             return _trim(f"【本日の開発】{subject}... Claude Codeで実装中。build in publicで全公開。{tag}")
         return _trim(f"【{today} devlog】今日もClaude Codeで自動化パイプラインを改善中。進捗は全公開。{tag}")
 
+    if pillar == "opinion":
+        commits = source_data.get("commits", [])
+        if commits:
+            subject = commits[0][:35]
+            return _trim(f"【気づき】{subject}... を実装して分かったこと。Claude Codeで毎日build in public中。あなたはどう思いますか？{tag}")
+        return _trim(f"【{today} 気づき】Claude Code自動化を続けて気づいたこと。失敗も全公開。あなたの経験も聞かせてください。{tag}")
+
+    if pillar == "utility":
+        topic = source_data.get("topic_hint", "tips")
+        commits = source_data.get("commits", [])
+        if topic == "error" and commits:
+            subject = commits[0][:30]
+            return _trim(f"エラー対応メモ: {subject}... で詰まった→原因と対策をまとめました。こういうデバッグログを毎日投稿しています。{tag}")
+        return _trim(f"Claude Code Tips: 今日の実装で使ったコマンド・設定を共有します。こういう小技を毎日投稿中です。{tag}")
+
     # revenue
     kpi = source_data.get("kpi_lines", [])
     followers_line = next((l for l in kpi if "followers" in l.lower() or "フォロワー" in l), "")
@@ -107,6 +122,27 @@ def generate_tweet(pillar: str, source_data: dict[str, Any], hashtags: str = "")
         kpi_lines = source_data.get("kpi_lines", [])
         kpi_block = "\n".join(kpi_lines) if kpi_lines else "KPI計測開始前"
         user = f"最新KPI:\n\n{kpi_block}"
+    elif pillar == "opinion":
+        system = _load_prompt("tier4_opinion.md")
+        template_hint = source_data.get("template_hint", "")
+        headlines = source_data.get("headlines", [])
+        commits = source_data.get("commits", [])
+        headline_block = "\n".join(f"- {h}" for h in headlines) if headlines else "（最新ニュースなし）"
+        commit_block = "\n".join(f"- {c}" for c in commits[:5]) if commits else "（本日コミットなし）"
+        user = (
+            f"テンプレート: {template_hint}\n\n"
+            f"最近のニュース（文脈用）:\n{headline_block}\n\n"
+            f"最近の実装（経験談用）:\n{commit_block}"
+        )
+    elif pillar == "utility":
+        system = _load_prompt("tier5_utility.md")
+        topic_hint = source_data.get("topic_hint", "tips")
+        commits = source_data.get("commits", [])
+        commit_block = "\n".join(f"- {c}" for c in commits[:5]) if commits else "（本日コミットなし）"
+        user = (
+            f"トピック区分: {topic_hint}\n\n"
+            f"最近の実装:\n{commit_block}"
+        )
     else:
         raise ValueError(f"Unknown pillar: {pillar!r}")
 

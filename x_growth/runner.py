@@ -43,7 +43,13 @@ def run(
     """Run one posting cycle."""
     from x_growth.pillar_router import resolve_pillar
     from x_growth.publish_guard import check_tweet
-    from x_growth.source_collector import collect_devlog, collect_revenue, collect_trend
+    from x_growth.source_collector import (
+        collect_devlog,
+        collect_opinion,
+        collect_revenue,
+        collect_trend,
+        collect_utility,
+    )
     from x_growth.tweet_generator import generate_tweet
 
     hashtags = os.getenv("X_HASHTAGS_DEFAULT", "#ClaudeCode #AI副業").strip()
@@ -57,6 +63,12 @@ def run(
     elif pillar == "devlog":
         src = collect_devlog()
         source_data = {"git_commits": src.git_commits, "adr_excerpts": src.adr_excerpts}
+    elif pillar == "opinion":
+        src = collect_opinion()
+        source_data = {"headlines": src.headlines, "commits": src.commits, "template_hint": src.template_hint}
+    elif pillar == "utility":
+        src = collect_utility()
+        source_data = {"topic_hint": src.topic_hint, "commits": src.commits}
     else:
         src = collect_revenue()
         source_data = {"kpi_lines": src.kpi_lines}
@@ -101,7 +113,7 @@ def main() -> None:
     )
 
     parser = argparse.ArgumentParser(description="x_growth runner — one tweet per run")
-    parser.add_argument("--pillar", choices=["trend", "devlog", "revenue"])
+    parser.add_argument("--pillar", choices=["trend", "devlog", "revenue", "opinion", "utility"])
     parser.add_argument("--live", action="store_true", help="Actually post (default: dry-run)")
     args = parser.parse_args()
 

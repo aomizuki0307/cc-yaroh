@@ -1,6 +1,8 @@
-name: x-growth-2330-revenue
+name: x-growth-2220-devlog
 
 on:
+  schedule:
+    - cron: '20 13 * * 1,2,4,6'
   workflow_dispatch:
 
 jobs:
@@ -23,20 +25,20 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Post tweet (revenue)
+      - name: Post tweet (devlog)
         env:
           X_OAUTH_CONSUMER_KEY: ${{ secrets.X_OAUTH_CONSUMER_KEY }}
           X_OAUTH_CONSUMER_SECRET: ${{ secrets.X_OAUTH_CONSUMER_SECRET }}
           X_OAUTH_ACCESS_TOKEN: ${{ secrets.X_OAUTH_ACCESS_TOKEN }}
           X_OAUTH_ACCESS_TOKEN_SECRET: ${{ secrets.X_OAUTH_ACCESS_TOKEN_SECRET }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          X_HASHTAGS_DEFAULT: "#ClaudeCode #AI副業"
-        run: python -m x_growth.runner --pillar revenue --live
+          X_HASHTAGS_DEFAULT: "#ClaudeCode #buildinpublic"
+        run: python -m x_growth.runner --pillar devlog --live
 
       - name: Upload draft artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: x-growth-2330-revenue-${{ github.run_number }}
+          name: x-growth-2220-devlog-${{ github.run_number }}
           path: out/x-growth/
           retention-days: 3
