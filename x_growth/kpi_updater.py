@@ -77,6 +77,25 @@ def fetch_follower_count() -> int:
     return count
 
 
+def _fetch_tweets_raw(tweet_ids: list[str], fields: str) -> list[dict[str, Any]]:
+    """Batch-fetch tweets from X API v2 in pages of 100.
+
+    Returns the combined list of tweet objects from all pages.
+    """
+    if not tweet_ids:
+        return []
+    session = _oauth_session()
+    results: list[dict[str, Any]] = []
+    for i in range(0, len(tweet_ids), 100):
+        batch = tweet_ids[i:i + 100]
+        resp = session.get(_TWEETS_URL, params={"ids": ",".join(batch), "tweet.fields": fields}, timeout=15)
+        if not resp.ok:
+            logger.warning("Tweet fetch failed (status=%d, fields=%s), skipping batch", resp.status_code, fields)
+            continue
+        results.extend(resp.json().get("data", []))
+    return results
+
+
 def fetch_tweet_metrics_batch(tweet_ids: list[str]) -> dict[str, int]:
     """Aggregate public_metrics + organic_metrics for given tweet IDs.
 
@@ -86,26 +105,14 @@ def fetch_tweet_metrics_batch(tweet_ids: list[str]) -> dict[str, int]:
         "impressions_sum": 0, "profile_clicks_sum": 0,
         "replies_sum": 0, "reposts_sum": 0, "likes_sum": 0,
     }
-    if not tweet_ids:
-        return totals
-
-    session = _oauth_session()
-    for i in range(0, len(tweet_ids), 100):
-        batch = tweet_ids[i:i + 100]
-        params = {"ids": ",".join(batch), "tweet.fields": "public_metrics,organic_metrics"}
-        resp = session.get(_TWEETS_URL, params=params, timeout=15)
-        if not resp.ok:
-            logger.warning("Tweet metrics fetch failed (status=%d), skipping batch", resp.status_code)
-            continue
-        for t in resp.json().get("data", []):
-            pub = t.get("public_metrics", {})
-            org = t.get("organic_metrics", {})
-            totals["impressions_sum"] += int(org.get("impression_count", 0))
-            totals["profile_clicks_sum"] += int(org.get("user_profile_clicks", 0))
-            totals["replies_sum"] += int(pub.get("reply_count", 0))
-            totals["reposts_sum"] += int(pub.get("retweet_count", 0))
-            totals["likes_sum"] += int(pub.get("like_count", 0))
-
+    for t in _fetch_tweets_raw(tweet_ids, "public_metrics,organic_metrics"):
+        pub = t.get("public_metrics", {})
+        org = t.get("organic_metrics", {})
+        totals["impressions_sum"] += int(org.get("impression_count", 0))
+        totals["profile_clicks_sum"] += int(org.get("user_profile_clicks", 0))
+        totals["replies_sum"] += int(pub.get("reply_count", 0))
+        totals["reposts_sum"] += int(pub.get("retweet_count", 0))
+        totals["likes_sum"] += int(pub.get("like_count", 0))
     logger.info("Tweet metrics batch (%d IDs): %s", len(tweet_ids), totals)
     return totals
 
@@ -115,23 +122,7 @@ def fetch_tweet_details(tweet_ids: list[str]) -> list[dict[str, Any]]:
 
     Used by weekly_reviewer for per-tweet analysis.
     """
-    if not tweet_ids:
-        return []
-
-    session = _oauth_session()
-    results: list[dict[str, Any]] = []
-    for i in range(0, len(tweet_ids), 100):
-        batch = tweet_ids[i:i + 100]
-        params = {
-            "ids": ",".join(batch),
-            "tweet.fields": "public_metrics,organic_metrics,text,created_at",
-        }
-        resp = session.get(_TWEETS_URL, params=params, timeout=15)
-        if not resp.ok:
-            logger.warning("Tweet details fetch failed (status=%d), skipping batch", resp.status_code)
-            continue
-        results.extend(resp.json().get("data", []))
-
+    results = _fetch_tweets_raw(tweet_ids, "public_metrics,organic_metrics,text,created_at")
     logger.info("Fetched details for %d/%d IDs", len(results), len(tweet_ids))
     return results
 
@@ -152,9 +143,11 @@ def _load_posted_records() -> list[dict[str, str]]:
 
 def _record_date(record: dict[str, str]) -> date:
     """Parse posted_at to JST date. Returns date.min on parse failure."""
+    raw = record.get("posted_at", "")
     try:
-        return datetime.fromisoformat(record.get("posted_at", "")).astimezone(JST).date()
+        return datetime.fromisoformat(raw).astimezone(JST).date()
     except (ValueError, OverflowError):
+        logger.warning("Unparseable posted_at %r in record id=%s", raw, record.get("id", "?"))
         return date.min
 
 
@@ -205,11 +198,13 @@ def update_kpi(
     followers: int,
     metrics: dict[str, int],
     *,
+    today: date | None = None,
     posts_today: int = 0,
     dry_run: bool = False,
 ) -> None:
     """Upsert today's row in kpi.csv with followers + tweet metrics."""
-    today_str = date.today().isoformat()
+    today = today or date.today()
+    today_str = today.isoformat()
     rows = _read_rows()
 
     # Use the last row that isn't today to compute follows_delta (re-run safe)
@@ -217,18 +212,23 @@ def update_kpi(
     prev_followers = int(prev_row.get("followers", 0)) if prev_row else 0
     follows_delta = followers - prev_followers
 
-    today_row = next((r for r in rows if r.get("date") == today_str), None)
-    if today_row:
-        today_row["followers"] = str(followers)
-        today_row["follows_delta"] = str(follows_delta)
-        today_row.update({k: str(v) for k, v in metrics.items()})
-        if posts_today:
-            today_row["posts_7d"] = str(posts_today)
+    metric_patch = {k: str(v) for k, v in metrics.items()}
+
+    existing = next((r for r in rows if r.get("date") == today_str), None)
+    if existing:
+        updated = {
+            **existing,
+            "followers": str(followers),
+            "follows_delta": str(follows_delta),
+            **metric_patch,
+            **({"posts_7d": str(posts_today)} if posts_today else {}),
+        }
+        rows = [updated if r.get("date") == today_str else r for r in rows]
         logger.info("Updated row %s: followers=%d delta=%+d", today_str, followers, follows_delta)
     else:
         new_row: dict[str, str] = {
             "date": today_str,
-            "week": _week_label(date.today()),
+            "week": _week_label(today),
             "followers": str(followers),
             "follows_delta": str(follows_delta),
             "impressions_7d": "0",
@@ -241,7 +241,7 @@ def update_kpi(
             "posts_7d": str(posts_today),
             "notes": "auto-updated",
         }
-        rows.append(new_row)
+        rows = [*rows, new_row]
         logger.info("Added row %s: followers=%d delta=%+d", today_str, followers, follows_delta)
 
     if dry_run:

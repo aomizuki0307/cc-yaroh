@@ -69,17 +69,17 @@ def collect_review_data() -> dict[str, Any]:
         t["id"]: t for t in fetch_tweet_details(all_ids)
     }
 
-    # Pillar-level stats
+    # Pillar-level stats — use fetched tweet count for averages to avoid inflated zeros
     pillar_stats: dict[str, dict[str, Any]] = {}
     for pillar, ids in by_pillar.items():
         tweets = [tweet_map[tid] for tid in ids if tid in tweet_map]
-        count = len(tweets) or 1  # avoid division by zero
+        fetched = len(tweets) or 1  # avoid division by zero; use fetched count not posted count
         pub_list = [t.get("public_metrics", {}) for t in tweets]
         pillar_stats[pillar] = {
             "posts": len(ids),
-            "avg_likes": round(sum(m.get("like_count", 0) for m in pub_list) / count, 1),
-            "avg_replies": round(sum(m.get("reply_count", 0) for m in pub_list) / count, 1),
-            "avg_reposts": round(sum(m.get("retweet_count", 0) for m in pub_list) / count, 1),
+            "avg_likes": round(sum(m.get("like_count", 0) for m in pub_list) / fetched, 1),
+            "avg_replies": round(sum(m.get("reply_count", 0) for m in pub_list) / fetched, 1),
+            "avg_reposts": round(sum(m.get("retweet_count", 0) for m in pub_list) / fetched, 1),
         }
 
     # Top 5 by engagement
@@ -159,7 +159,7 @@ def generate_review(data: dict[str, Any]) -> str:
         )
         return message.content[0].text.strip()  # type: ignore[union-attr]
     except Exception as exc:
-        logger.warning("Haiku call failed: %s", exc)
+        logger.warning("Haiku call failed: %s", exc, exc_info=True)
         return _format_fallback_review(data)
 
 

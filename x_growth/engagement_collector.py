@@ -16,7 +16,7 @@ import argparse
 import logging
 import math
 import os
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -30,10 +30,11 @@ _FETCH_MAX = 15
 _MIN_LIKES_REPLY = 2
 _MIN_LIKES_QUOTE = 10
 _TOP_REPLY_N = 5
-_TOP_QUOTE_N = 2
+_TOP_QUOTE_N = 1
 _MODEL = "claude-haiku-4-5-20251001"
 _MAX_REPLY_CHARS = 200
 _MAX_QUOTE_CHARS = 200
+JST = timezone(timedelta(hours=9))
 
 
 # ---------------------------------------------------------------------------
@@ -274,27 +275,37 @@ def _save_draft(content: str) -> Path:
 
 def _save_quotes_draft(quotes: list[dict], quote_texts: list[str]) -> None:
     today = date.today().isoformat()
+    now_label = datetime.now(JST).strftime("%H:%M JST")
     _QUOTES_DIR.mkdir(parents=True, exist_ok=True)
     path = _QUOTES_DIR / f"{today}.md"
-    lines = [f"# 引用ツイート下書き — {today}\n"]
+    lines = [f"# 引用ツイート下書き — {today}\n", f"## {now_label} 分\n"]
     for i, (quote, text) in enumerate(zip(quotes, quote_texts), 1):
         quote_url = f"https://x.com/{quote['username']}/status/{quote['id']}"
-        lines.append(f"## [{i}] DRY-RUN")
+        lines.append(f"### [{i}] 下書き")
         lines.append(f"引用元: @{quote['username']} — \"{quote['text'][:80]}\"")
         lines.append(f"引用URL: {quote_url}")
         lines.append(f"投稿予定文: {text}")
         lines.append("")
-    path.write_text("\n".join(lines), encoding="utf-8")
+    new_content = "\n".join(lines)
+    if path.exists():
+        existing = path.read_text(encoding="utf-8")
+        path.write_text(existing.rstrip() + "\n\n---\n\n" + new_content, encoding="utf-8")
+    else:
+        path.write_text(new_content, encoding="utf-8")
     logger.info("Quote draft saved: %s", path)
     print(f"Quote draft saved: {path}")
 
 
 def _save_quotes_log(quotes: list[dict], quote_texts: list[str], results: list[dict]) -> None:
-    today = date.today().isoformat()
     _QUOTES_DIR.mkdir(parents=True, exist_ok=True)
-    path = _QUOTES_DIR / f"{today}.md"
-    content = _format_quotes_md(quotes, quote_texts, results)
-    path.write_text(content, encoding="utf-8")
+    path = _QUOTES_DIR / f"{date.today().isoformat()}.md"
+    now_label = datetime.now(JST).strftime("%H:%M JST")
+    content = f"## {now_label} 投稿分\n\n" + _format_quotes_md(quotes, quote_texts, results)
+    if path.exists():
+        existing = path.read_text(encoding="utf-8")
+        path.write_text(existing.rstrip() + "\n\n---\n\n" + content, encoding="utf-8")
+    else:
+        path.write_text(content, encoding="utf-8")
     logger.info("Quote log saved: %s", path)
     print(f"Quote log saved: {path}")
 
