@@ -1,4 +1,5 @@
-date,week,followers,impressions_7d,revenue_jpy,posts_7d,notes
-2026-05-18,W0,0,0,0,1,Day-0 account created @cc_yaroh pinned tweet posted
-2026-05-19,W1,0,0,0,1,First live tweet posted id=2056713617194766466 / cron enabled
-2026-05-20,W1,0,0,0,5,profile images v1 set + bio adjusted to avoid GitHub repo count mismatch
+date,week,followers,follows_delta,impressions_7d,impressions_sum,profile_clicks_sum,replies_sum,reposts_sum,likes_sum,revenue_jpy,posts_7d,notes
+2026-05-18,W0,0,0,0,0,0,0,0,0,0,1,Day-0 account created @cc_yaroh pinned tweet posted
+2026-05-19,W1,0,0,0,0,0,0,0,0,0,1,First live tweet posted id=2056713617194766466 / cron enabled
+2026-05-20,W1,0,0,0,0,0,0,0,0,0,5,profile images v1 set + bio adjusted to avoid GitHub repo count mismatch
+2026-06-10,W3,0,0,0,0,0,0,0,0,0,0,auto-updated
